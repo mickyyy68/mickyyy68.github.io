@@ -231,7 +231,7 @@ endmodule
 
 # Full Adder
 
-```
+```verilog
 module full_adder(
     input a_i,
     input b_i,
