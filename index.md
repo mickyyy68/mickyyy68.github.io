@@ -227,3 +227,32 @@ module register_file_4x8 (
 
 endmodule
 ```
+
+
+# Full Adder
+
+```
+module full_adder(
+    input a_i,
+    input b_i,
+    input c_i,
+    output s_o,
+    output c_o
+);
+    assign {c_o, s_o} = a_i + b_i + c_i;
+endmodule
+
+module full_adder_3b(
+    input [2:0] a_i,
+    input [2:0] b_i,
+    input c_i,
+    output [2:0] s_o,
+    output c_o
+);
+    wire [1:0] c_out;
+
+    full_adder fa0 (.a_i(a_i[0]), .b_i(b_i[0]), .c_i(c_i), .s_o(s_o[0]), .c_o(c_out[0]));
+    full_adder fa1 (.a_i(a_i[1]), .b_i(b_i[1]), .c_i(c_out[0]), .s_o(s_o[1]), .c_o(c_out[1]));
+    full_adder fa2 (.a_i(a_i[2]), .b_i(b_i[2]), .c_i(c_out[1]), .s_o(s_o[2]), .c_o(c_o));
+endmodule
+```
