@@ -2,6 +2,135 @@ go hard
 
 
 
+# Barrel Shifter
+```verilog
+`timescale 1ns/1ps
+
+// ---------------------------------------------------------------------------
+// Barrel shifter 16-bit combinatorio
+// dir_i = 0 -> shift left logico
+// dir_i = 1 -> shift right (arith_i = 0 logico, arith_i = 1 aritmetico)
+// ---------------------------------------------------------------------------
+module barrel_shifter16 (
+    input  wire [15:0] data_i,
+    input  wire [3:0]  shamt_i,
+    input  wire        dir_i,    // 0 = left, 1 = right
+    input  wire        arith_i,  // valido solo se dir_i = 1
+    output wire [15:0] data_o
+);
+    // Stage 0: shift di 1
+    wire [15:0] s0_in  = data_i;
+    wire [15:0] s0_l   = {s0_in[14:0], 1'b0};
+    wire [15:0] s0_r_l = {1'b0, s0_in[15:1]};
+    wire [15:0] s0_r_a = {s0_in[15], s0_in[15:1]};
+    wire [15:0] s0_sel = (dir_i == 1'b0) ? s0_l :
+                         (arith_i ? s0_r_a : s0_r_l);
+    wire [15:0] s0_out = shamt_i[0] ? s0_sel : s0_in;
+
+    // Stage 1: shift di 2
+    wire [15:0] s1_in  = s0_out;
+    wire [15:0] s1_l   = {s1_in[13:0], 2'b00};
+    wire [15:0] s1_r_l = {2'b00, s1_in[15:2]};
+    wire [15:0] s1_r_a = {{2{s1_in[15]}}, s1_in[15:2]};
+    wire [15:0] s1_sel = (dir_i == 1'b0) ? s1_l :
+                         (arith_i ? s1_r_a : s1_r_l);
+    wire [15:0] s1_out = shamt_i[1] ? s1_sel : s1_in;
+
+    // Stage 2: shift di 4
+    wire [15:0] s2_in  = s1_out;
+    wire [15:0] s2_l   = {s2_in[11:0], 4'b0000};
+    wire [15:0] s2_r_l = {4'b0000, s2_in[15:4]};
+    wire [15:0] s2_r_a = {{4{s2_in[15]}}, s2_in[15:4]};
+    wire [15:0] s2_sel = (dir_i == 1'b0) ? s2_l :
+                         (arith_i ? s2_r_a : s2_r_l);
+    wire [15:0] s2_out = shamt_i[2] ? s2_sel : s2_in;
+
+    // Stage 3: shift di 8
+    wire [15:0] s3_in  = s2_out;
+    wire [15:0] s3_l   = {s3_in[7:0], 8'h00};
+    wire [15:0] s3_r_l = {8'h00, s3_in[15:8]};
+    wire [15:0] s3_r_a = {{8{s3_in[15]}}, s3_in[15:8]};
+    wire [15:0] s3_sel = (dir_i == 1'b0) ? s3_l :
+                         (arith_i ? s3_r_a : s3_r_l);
+    wire [15:0] s3_out = shamt_i[3] ? s3_sel : s3_in;
+
+    assign data_o = s3_out;
+
+endmodule
+
+// ---------------------------------------------------------------------------
+// Mini ALU 16-bit
+// ---------------------------------------------------------------------------
+module mini_alu16 (
+    input  wire [15:0] a_i,
+    input  wire [15:0] b_i,
+    input  wire [3:0]  op_i,
+    input  wire [3:0]  shamt_i,
+    output reg  [15:0] res_o,
+    output wire        zero_o
+);
+
+    // Codici operazione
+    localparam OP_ADD = 4'b0000;
+    localparam OP_SUB = 4'b0001;
+    localparam OP_AND = 4'b0010;
+    localparam OP_OR  = 4'b0011;
+    localparam OP_XOR = 4'b0100;
+    localparam OP_SLL = 4'b0101;
+    localparam OP_SRL = 4'b0110;
+    localparam OP_SRA = 4'b0111;
+
+    // Uscite barrel shifter
+    wire [15:0] sh_left;
+    wire [15:0] sh_right_log;
+    wire [15:0] sh_right_arith;
+
+    // SLL
+    barrel_shifter16 u_sh_left (
+        .data_i (a_i),
+        .shamt_i(shamt_i),
+        .dir_i  (1'b0),     // 0 = left
+        .arith_i(1'b0),     // non usato
+        .data_o (sh_left)
+    );
+
+    // SRL
+    barrel_shifter16 u_sh_right_log (
+        .data_i (a_i),
+        .shamt_i(shamt_i),
+        .dir_i  (1'b1),     // 1 = right
+        .arith_i(1'b0),     // logical
+        .data_o (sh_right_log)
+    );
+
+    // SRA
+    barrel_shifter16 u_sh_right_arith (
+        .data_i (a_i),
+        .shamt_i(shamt_i),
+        .dir_i  (1'b1),
+        .arith_i(1'b1),     // arithmetic
+        .data_o (sh_right_arith)
+    );
+
+    // ALU combinatoria
+    always @(*) begin
+        case (op_i)
+            OP_ADD: res_o = a_i + b_i;
+            OP_SUB: res_o = a_i - b_i;
+            OP_AND: res_o = a_i & b_i;
+            OP_OR : res_o = a_i | b_i;
+            OP_XOR: res_o = a_i ^ b_i;
+            OP_SLL: res_o = sh_left;
+            OP_SRL: res_o = sh_right_log;
+            OP_SRA: res_o = sh_right_arith;
+            default: res_o = 16'h0000;
+        endcase
+    end
+
+    assign zero_o = (res_o == 16'h0000);
+
+endmodule
+```
 
 # Universal Reg
 
